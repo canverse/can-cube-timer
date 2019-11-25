@@ -103,9 +103,9 @@ export class CanCubeTimer extends EventEmitter {
 
   constructor(
     options: Options = {
-      interval = 100,
-      noInspect = false,
-      timeLimit = 10 * 60
+      interval: 100,
+      noInspect: false,
+      timeLimit: 10 * 60
     }
   ) {
     super();
