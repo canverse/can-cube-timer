@@ -6,8 +6,19 @@ declare module 'tiny-timer' {
     interval?: number;
   }
 
-  class Timer extends NodeJS.EventEmitter {
-    constructor(options?: TinyTimerOptions);
+  interface Test {
+    start(duration: number, interval?: number): void;
+    stop(): void;
+    pause(): void;
+    resume(): void;
+    time: number;
+    duration: number;
+    status: Status;
+  }
+  class Timer extends NodeJS.EventEmitter implements Test {
+    constructor(opts?: TinyTimerOptions);
+
+    on(event: string | symbol, listener: (...args: any[]) => void): this;
     start(duration: number, interval?: number): void;
     stop(): void;
     pause(): void;
@@ -17,5 +28,5 @@ declare module 'tiny-timer' {
     status: Status;
   }
 
-  export = Timer;
+  export default Timer;
 }
