@@ -1,5 +1,4 @@
 export enum TimerStatus {
-  Running = 'RUNNING',
   Stopped = 'STOPPED',
   Inspecting = 'INSPECTING',
   Solving = 'SOLVING',
