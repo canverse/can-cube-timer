@@ -16,15 +16,21 @@ export class CanCubeError extends Error {
   }
 }
 
+interface InternalOptions {
+  interval: number;
+  noInspect: boolean;
+  timeLimit: number;
+}
+
 export default class CanCubeTimer extends EventEmitter {
   private inspectionTimer: TinyTimer | undefined;
   private solveTimer: TinyTimer;
-  public readonly options: Options;
+  public readonly options: InternalOptions;
 
   private solveInformation: ISolveEndEvent | null = null;
 
   private inspectionTimerTickHandleCount = 0;
-  private timeoutId?: NodeJS.Timeout;
+  private tickIntervalId?: NodeJS.Timer;
 
   constructor(
     options: Options | undefined = {
@@ -34,7 +40,11 @@ export default class CanCubeTimer extends EventEmitter {
     }
   ) {
     super();
-    this.options = options;
+    this.options = {
+      interval: options.interval ? options.interval : 100,
+      noInspect: options.noInspect ? options.noInspect : false,
+      timeLimit: options.timeLimit ? options.timeLimit : 10 * 60
+    };
 
     if (!this.options.noInspect) {
       this.inspectionTimer = new TinyTimer();
@@ -48,11 +58,12 @@ export default class CanCubeTimer extends EventEmitter {
   }
 
   private startTicking = () => {
-    if (!this.timeoutId) {
+    if (!this.tickIntervalId) {
       this.tick();
-      this.timeoutId = setInterval(this.tick, this.options.interval!);
+      this.tickIntervalId = setInterval(this.tick, this.options.interval!);
     }
   };
+
   private tick = () => {
     this.emit(EventType.Tick, {
       status: this.status,
@@ -66,17 +77,18 @@ export default class CanCubeTimer extends EventEmitter {
   private emitInspectionWarning() {
     this.inspectionTimerTickHandleCount++;
     this.emit(EventType.InspectionWarning, {
-      timeRemaining: 15 - this.inspectionTimer!.time
+      timeRemaining: this.inspectionTimer!.time - 2000
     });
   }
 
   private onInspectionTick = (time: number) => {
-    if (time > 8000 && this.inspectionTimerTickHandleCount === 0) {
+    if (time < 10000 && this.inspectionTimerTickHandleCount === 0) {
       this.emitInspectionWarning();
-    } else if (time > 12000 && this.inspectionTimerTickHandleCount === 1) {
+    } else if (time < 5000 && this.inspectionTimerTickHandleCount === 1) {
       this.emitInspectionWarning();
-    } else if (time > 15000 && this.inspectionTimerTickHandleCount === 2) {
-      // emit the +2 penalty
+    } else if (time < 2000 && this.inspectionTimerTickHandleCount === 2) {
+      this.inspectionTimerTickHandleCount++;
+      this.solveInformation!.penalized = true;
       this.emit(EventType.Penalty, { type: PenaltyType.PlusTwo });
     }
   };
@@ -86,19 +98,21 @@ export default class CanCubeTimer extends EventEmitter {
       this.inspectionTimer!.on('tick', this.onInspectionTick);
 
       this.inspectionTimer!.on('done', () => {
-        // emit DNF and solve end.
+        this.solveInformation!.inspectionTime = 17000;
+        this.stopWithDNF();
+      });
+
+      this.solveTimer.on('done', () => {
+        this.solveInformation!.solveTime = this.options.timeLimit!;
       });
     }
-
-    this.solveTimer.on('done', () => {
-      // emit DNF and solve end.
-    });
   };
 
   private resetSolveInformation = () => {
     this.solveInformation = {
       inspectionTime: null,
       isDNF: false,
+      aborted: false,
       penalized: false,
       solveTime: null
     };
@@ -110,9 +124,36 @@ export default class CanCubeTimer extends EventEmitter {
   };
 
   private resetTimer = () => {
+    clearInterval(this.tickIntervalId!);
     this.resetSolveInformation();
     this.stopInternalTimers();
     this.inspectionTimerTickHandleCount = 0;
+  };
+
+  private stopWithDNF = () => {
+    this.solveInformation!.isDNF = true;
+    return this.stop();
+  };
+
+  public abort = () => {
+    this.solveInformation!.aborted = true;
+    return this.stopWithDNF();
+  };
+
+  public stop = () => {
+    if (this.status === TimerStatus.Stopped) {
+      this.throwError("Tried calling 'stop' when the timer is already stopped");
+    }
+
+    const solveEndInfo = Object.assign({}, this.solveInformation);
+    if (this.status === TimerStatus.Solving) {
+      solveEndInfo.solveTime = this.solveTimer.time;
+    }
+
+    this.emit(EventType.SolveEnd, solveEndInfo);
+    this.emit(EventType.StatusChange, TimerStatus.Stopped);
+    this.resetTimer();
+    return solveEndInfo;
   };
 
   private throwError = (message: string) => {
@@ -139,6 +180,7 @@ export default class CanCubeTimer extends EventEmitter {
       );
     }
 
+    this.emit(EventType.StatusChange, TimerStatus.Inspecting);
     this.resetSolveInformation();
 
     this.inspectionTimer!.start(17000); // This will run for at most 15 + 2;
@@ -152,12 +194,14 @@ export default class CanCubeTimer extends EventEmitter {
       );
     }
 
-    if (this.status === TimerStatus.Inspecting) {
-      this.solveInformation!.inspectionTime = this.inspectionTimer!.time;
+    if (!this.options.noInspect && this.status === TimerStatus.Inspecting) {
+      this.solveInformation!.inspectionTime =
+        17000 - this.inspectionTimer!.time;
       this.inspectionTimer!.stop();
+      this.emit(EventType.StatusChange, TimerStatus.Solving);
     }
 
-    this.solveTimer.start(this.options.timeLimit!);
+    this.solveTimer.start(this.options.timeLimit! * 1000);
   };
 
   get status(): TimerStatus {

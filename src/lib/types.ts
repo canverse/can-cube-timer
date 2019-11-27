@@ -6,10 +6,11 @@ export enum TimerStatus {
 }
 
 export enum EventType {
+  StatusChange = 'statusChange',
   InspectionWarning = 'inspectionWarning',
   Penalty = 'penalty',
   Tick = 'tick',
-  Done = 'done'
+  SolveEnd = 'solveEnd'
 }
 
 export enum PenaltyType {
@@ -27,14 +28,15 @@ export interface IInspectionWarningEvent {
 
 export interface ITickEvent {
   status: TimerStatus;
-  timer: number;
+  time: number;
 }
 
 export interface ISolveEndEvent {
-  inspectionTime?: number | null;
+  inspectionTime: number | null;
   isDNF: boolean;
+  aborted: boolean | null;
   penalized: boolean;
-  solveTime?: number | null;
+  solveTime: number | null;
 }
 
 export interface Options {
