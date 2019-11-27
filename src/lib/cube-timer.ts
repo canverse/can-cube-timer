@@ -142,7 +142,8 @@ export default class CanCubeTimer extends EventEmitter {
 
   public stop = () => {
     if (this.status === TimerStatus.Stopped) {
-      this.throwError("Tried calling 'stop' when the timer is already stopped");
+      console.warn("Tried calling 'stop' when the timer is already stopped");
+      return;
     }
 
     const solveEndInfo = Object.assign({}, this.solveInformation);
