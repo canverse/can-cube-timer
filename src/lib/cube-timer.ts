@@ -191,6 +191,14 @@ export default class CanCubeTimer extends EventEmitter {
     this.solveTimer.start(this.configuration.timeLimit * 1000);
   };
 
+  public start = (): void => {
+    if (!this.configuration.noInspect && this.status === TimerStatus.Stopped) {
+      this.startInspection();
+    } else {
+      this.startSolve();
+    }
+  };
+
   get status(): TimerStatus {
     if (!this.configuration.noInspect && this.inspectionTimer.status === TinyTimerStatus.Running) {
       return TimerStatus.Inspecting;
@@ -201,5 +209,17 @@ export default class CanCubeTimer extends EventEmitter {
     }
 
     return TimerStatus.Stopped;
+  }
+
+  get time(): number | null {
+    if (this.status === TimerStatus.Inspecting) {
+      return this.inspectionTimer.time;
+    }
+
+    if (this.status === TimerStatus.Solving) {
+      return this.solveTimer.time;
+    }
+
+    return null;
   }
 }
