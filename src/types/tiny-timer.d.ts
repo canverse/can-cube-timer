@@ -7,12 +7,11 @@ declare module 'tiny-timer' {
   export enum TinyTimerStatus {
     Running = 'running',
     Paused = 'paused',
-    Stopped = 'stopped'
+    Stopped = 'stopped',
   }
 
   export default class Timer extends NodeJS.EventEmitter {
     constructor(options?: TinyTimerOptions);
-    on(event: string | symbol, listener: (...args: any[]) => void): this;
     start(duration: number, interval?: number): void;
     stop(): void;
     pause(): void;

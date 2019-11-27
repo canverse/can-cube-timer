@@ -2,7 +2,7 @@ export enum TimerStatus {
   Running = 'RUNNING',
   Stopped = 'STOPPED',
   Inspecting = 'INSPECTING',
-  Solving = 'SOLVING'
+  Solving = 'SOLVING',
 }
 
 export enum EventType {
@@ -10,28 +10,28 @@ export enum EventType {
   InspectionWarning = 'inspectionWarning',
   Penalty = 'penalty',
   Tick = 'tick',
-  SolveEnd = 'solveEnd'
+  SolveEnd = 'solveEnd',
 }
 
 export enum PenaltyType {
   PlusTwo = 'PENALTY_PLUS_TWO',
-  DNF = 'PENALTY_DNF'
+  DNF = 'PENALTY_DNF',
 }
 
-export interface IPenaltyEvent {
+export interface PenaltyEvent {
   type: PenaltyType;
 }
 
-export interface IInspectionWarningEvent {
+export interface InspectionWarningEvent {
   timeRemaining: number;
 }
 
-export interface ITickEvent {
+export interface TickEvent {
   status: TimerStatus;
   time: number;
 }
 
-export interface ISolveEndEvent {
+export interface SolveEndEvent {
   inspectionTime: number | null;
   isDNF: boolean;
   aborted: boolean | null;
@@ -48,5 +48,5 @@ export interface Options {
 export enum TinyTimerStatus {
   Running = 'running',
   Paused = 'paused',
-  Stopped = 'stopped'
+  Stopped = 'stopped',
 }

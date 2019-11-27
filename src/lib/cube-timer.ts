@@ -2,11 +2,11 @@ import { EventEmitter } from 'events';
 import TinyTimer from 'tiny-timer';
 import {
   EventType,
-  ISolveEndEvent,
+  SolveEndEvent,
   Options,
   TinyTimerStatus,
   PenaltyType,
-  TimerStatus
+  TimerStatus,
 } from './types';
 
 export class CanCubeError extends Error {
@@ -27,7 +27,7 @@ export default class CanCubeTimer extends EventEmitter {
   private solveTimer: TinyTimer;
   public readonly options: InternalOptions;
 
-  private solveInformation: ISolveEndEvent | null = null;
+  private solveInformation: SolveEndEvent | null = null;
 
   private inspectionTimerTickHandleCount = 0;
   private tickIntervalId?: NodeJS.Timer;
@@ -36,14 +36,14 @@ export default class CanCubeTimer extends EventEmitter {
     options: Options | undefined = {
       interval: 100,
       noInspect: false,
-      timeLimit: 10 * 60
-    }
+      timeLimit: 10 * 60,
+    },
   ) {
     super();
     this.options = {
       interval: options.interval ? options.interval : 100,
       noInspect: options.noInspect ? options.noInspect : false,
-      timeLimit: options.timeLimit ? options.timeLimit : 10 * 60
+      timeLimit: options.timeLimit ? options.timeLimit : 10 * 60,
     };
 
     if (!this.options.noInspect) {
@@ -51,99 +51,97 @@ export default class CanCubeTimer extends EventEmitter {
     }
     this.solveTimer = new TinyTimer({
       stopwatch: true,
-      interval: this.options.timeLimit! + 1000 // We don't need it to tick. TODO: Do we even need it?
+      interval: this.options.timeLimit + 1000, // We don't need it to tick. TODO: Do we even need it?
     });
 
     this.initInternalTimers();
   }
 
-  private startTicking = () => {
+  private startTicking = (): void => {
     if (!this.tickIntervalId) {
       this.tick();
-      this.tickIntervalId = setInterval(this.tick, this.options.interval!);
+      this.tickIntervalId = setInterval(this.tick, this.options.interval);
     }
   };
 
-  private tick = () => {
+  private tick = (): void => {
     this.emit(EventType.Tick, {
       status: this.status,
       time:
-        this.status === TimerStatus.Inspecting
-          ? this.inspectionTimer!.time
-          : this.solveTimer.time
+        this.status === TimerStatus.Inspecting ? this.inspectionTimer.time : this.solveTimer.time,
     });
   };
 
-  private emitInspectionWarning() {
+  private emitInspectionWarning(): void {
     this.inspectionTimerTickHandleCount++;
     this.emit(EventType.InspectionWarning, {
-      timeRemaining: this.inspectionTimer!.time - 2000
+      timeRemaining: this.inspectionTimer.time - 2000,
     });
   }
 
-  private onInspectionTick = (time: number) => {
+  private onInspectionTick = (time: number): void => {
     if (time < 10000 && this.inspectionTimerTickHandleCount === 0) {
       this.emitInspectionWarning();
     } else if (time < 5000 && this.inspectionTimerTickHandleCount === 1) {
       this.emitInspectionWarning();
     } else if (time < 2000 && this.inspectionTimerTickHandleCount === 2) {
       this.inspectionTimerTickHandleCount++;
-      this.solveInformation!.penalized = true;
+      this.solveInformation.penalized = true;
       this.emit(EventType.Penalty, { type: PenaltyType.PlusTwo });
     }
   };
 
-  private initInternalTimers = () => {
+  private initInternalTimers = (): void => {
     if (!this.options.noInspect) {
-      this.inspectionTimer!.on('tick', this.onInspectionTick);
+      this.inspectionTimer.on('tick', this.onInspectionTick);
 
-      this.inspectionTimer!.on('done', () => {
-        this.solveInformation!.inspectionTime = 17000;
+      this.inspectionTimer.on('done', () => {
+        this.solveInformation.inspectionTime = 17000;
         this.stopWithDNF();
       });
 
       this.solveTimer.on('done', () => {
-        this.solveInformation!.solveTime = this.options.timeLimit!;
+        this.solveInformation.solveTime = this.options.timeLimit;
       });
     }
   };
 
-  private resetSolveInformation = () => {
+  private resetSolveInformation = (): void => {
     this.solveInformation = {
       inspectionTime: null,
       isDNF: false,
       aborted: false,
       penalized: false,
-      solveTime: null
+      solveTime: null,
     };
   };
 
-  private stopInternalTimers = () => {
-    !this.options.noInspect && this.inspectionTimer!.stop();
+  private stopInternalTimers = (): void => {
+    !this.options.noInspect && this.inspectionTimer.stop();
     this.solveTimer.stop();
   };
 
-  private resetTimer = () => {
-    clearInterval(this.tickIntervalId!);
+  private resetTimer = (): void => {
+    clearInterval(this.tickIntervalId);
     this.resetSolveInformation();
     this.stopInternalTimers();
     this.inspectionTimerTickHandleCount = 0;
   };
 
-  private stopWithDNF = () => {
-    this.solveInformation!.isDNF = true;
+  private stopWithDNF = (): SolveEndEvent | null => {
+    this.solveInformation.isDNF = true;
     return this.stop();
   };
 
-  public abort = () => {
-    this.solveInformation!.aborted = true;
+  public abort = (): SolveEndEvent | null => {
+    this.solveInformation.aborted = true;
     return this.stopWithDNF();
   };
 
-  public stop = () => {
+  public stop = (): SolveEndEvent | null => {
     if (this.status === TimerStatus.Stopped) {
       console.warn("Tried calling 'stop' when the timer is already stopped");
-      return;
+      return null;
     }
 
     const solveEndInfo = Object.assign({}, this.solveInformation);
@@ -157,59 +155,47 @@ export default class CanCubeTimer extends EventEmitter {
     return solveEndInfo;
   };
 
-  private throwError = (message: string) => {
+  private throwError = (message: string): void => {
     this.resetTimer(); // Reset everything before we throw
     throw new CanCubeError(message);
   };
 
-  public startInspection = () => {
+  public startInspection = (): void => {
     if (this.options.noInspect) {
-      this.throwError(
-        "Tried calling 'startInspection' with 'noInspect' option set to true!"
-      );
+      this.throwError("Tried calling 'startInspection' with 'noInspect' option set to true!");
     }
 
-    if (this.inspectionTimer!.status === TinyTimerStatus.Running) {
-      this.throwError(
-        "Tried calling 'startInspection' more than once during a single solve!"
-      );
+    if (this.inspectionTimer.status === TinyTimerStatus.Running) {
+      this.throwError("Tried calling 'startInspection' more than once during a single solve!");
     }
 
     if (this.status === TimerStatus.Solving) {
-      this.throwError(
-        "Tried calling 'startInspection' while in the 'Solving' phase!"
-      );
+      this.throwError("Tried calling 'startInspection' while in the 'Solving' phase!");
     }
 
     this.emit(EventType.StatusChange, TimerStatus.Inspecting);
     this.resetSolveInformation();
 
-    this.inspectionTimer!.start(17000); // This will run for at most 15 + 2;
+    this.inspectionTimer.start(17000); // This will run for at most 15 + 2;
     this.startTicking();
   };
 
-  public startSolve = () => {
+  public startSolve = (): void => {
     if (this.solveTimer.status === TinyTimerStatus.Running) {
-      throw new CanCubeError(
-        "Tried calling 'startSolve' while in the 'Solving' phase!"
-      );
+      throw new CanCubeError("Tried calling 'startSolve' while in the 'Solving' phase!");
     }
 
     if (!this.options.noInspect && this.status === TimerStatus.Inspecting) {
-      this.solveInformation!.inspectionTime =
-        17000 - this.inspectionTimer!.time;
-      this.inspectionTimer!.stop();
+      this.solveInformation.inspectionTime = 17000 - this.inspectionTimer.time;
+      this.inspectionTimer.stop();
       this.emit(EventType.StatusChange, TimerStatus.Solving);
     }
 
-    this.solveTimer.start(this.options.timeLimit! * 1000);
+    this.solveTimer.start(this.options.timeLimit * 1000);
   };
 
   get status(): TimerStatus {
-    if (
-      !this.options.noInspect &&
-      this.inspectionTimer!.status === TinyTimerStatus.Running
-    ) {
+    if (!this.options.noInspect && this.inspectionTimer.status === TinyTimerStatus.Running) {
       return TimerStatus.Inspecting;
     }
 

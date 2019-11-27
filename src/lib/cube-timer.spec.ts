@@ -2,7 +2,7 @@
 
 import test from 'ava';
 import CanCubeTimer, { CanCubeError } from '../lib/cube-timer';
-import { TimerStatus, EventType, ITickEvent } from './types';
+import { TimerStatus, EventType, TickEvent } from './types';
 
 test('That a timer get initialized correctly without any parameters passed to the constructor', t => {
   const timer = new CanCubeTimer();
@@ -15,7 +15,7 @@ test('Correctly initializes with the supplied options', t => {
   const timer = new CanCubeTimer({
     interval: 10,
     noInspect: true,
-    timeLimit: 60
+    timeLimit: 60,
   });
 
   t.is(timer.options.interval, 10);
@@ -23,24 +23,21 @@ test('Correctly initializes with the supplied options', t => {
   t.is(timer.options.timeLimit, 60);
 });
 
-test.cb(
-  'Starts inspection correctly and calls the supplied tick handler correctly',
-  t => {
-    const timer = new CanCubeTimer();
-    timer.on(EventType.Tick, ({ status }: ITickEvent) => {
-      t.is(status, TimerStatus.Inspecting);
-      t.end();
-    });
-    timer.startInspection();
-  }
-);
+test.cb('Starts inspection correctly and calls the supplied tick handler correctly', t => {
+  const timer = new CanCubeTimer();
+  timer.on(EventType.Tick, ({ status }: TickEvent) => {
+    t.is(status, TimerStatus.Inspecting);
+    t.end();
+  });
+  timer.startInspection();
+});
 
 test('Throws an error if you try to call startInspection on a timer initialized with options.noInspect set to true', t => {
   const timer = new CanCubeTimer({ noInspect: true });
   t.throws(
     timer.startInspection,
     CanCubeError,
-    "Tried calling 'startInspection' with 'noInspect' option set to true!"
+    "Tried calling 'startInspection' with 'noInspect' option set to true!",
   );
   t.is(timer.status, TimerStatus.Stopped);
 });
@@ -52,7 +49,7 @@ test('Throws an error if you try to call startInspection more than once during a
   t.throws(
     timer.startInspection,
     CanCubeError,
-    "Tried calling 'startInspection' more than once during a single solve!"
+    "Tried calling 'startInspection' more than once during a single solve!",
   );
   t.is(timer.status, TimerStatus.Stopped);
 });
