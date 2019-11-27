@@ -31,6 +31,12 @@ export interface TickEvent {
   time: number;
 }
 
+export interface TimerConfiguration {
+  interval: number;
+  noInspect: boolean;
+  timeLimit: number;
+}
+
 export interface SolveEndEvent {
   inspectionTime: number | null;
   isDNF: boolean;

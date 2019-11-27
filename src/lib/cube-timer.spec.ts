@@ -6,9 +6,9 @@ import { TimerStatus, EventType, TickEvent } from './types';
 
 test('That a timer get initialized correctly without any parameters passed to the constructor', t => {
   const timer = new CanCubeTimer();
-  t.is(timer.options.interval, 100);
-  t.false(timer.options.noInspect);
-  t.is(timer.options.timeLimit, 10 * 60);
+  t.is(timer.configuration.interval, 100);
+  t.false(timer.configuration.noInspect);
+  t.is(timer.configuration.timeLimit, 10 * 60);
 });
 
 test('Correctly initializes with the supplied options', t => {
@@ -18,9 +18,9 @@ test('Correctly initializes with the supplied options', t => {
     timeLimit: 60,
   });
 
-  t.is(timer.options.interval, 10);
-  t.true(timer.options.noInspect);
-  t.is(timer.options.timeLimit, 60);
+  t.is(timer.configuration.interval, 10);
+  t.true(timer.configuration.noInspect);
+  t.is(timer.configuration.timeLimit, 60);
 });
 
 test.cb('Starts inspection correctly and calls the supplied tick handler correctly', t => {

@@ -7,6 +7,7 @@ import {
   TinyTimerStatus,
   PenaltyType,
   TimerStatus,
+  TimerConfiguration,
 } from './types';
 
 export class CanCubeError extends Error {
@@ -16,42 +17,38 @@ export class CanCubeError extends Error {
   }
 }
 
-interface InternalOptions {
-  interval: number;
-  noInspect: boolean;
-  timeLimit: number;
-}
-
+const defaultConfig = {
+  interval: 100,
+  noInspect: false,
+  timeLimit: 10 * 60,
+};
 export default class CanCubeTimer extends EventEmitter {
   private inspectionTimer: TinyTimer | undefined;
   private solveTimer: TinyTimer;
-  public readonly options: InternalOptions;
-
   private solveInformation: SolveEndEvent | null = null;
-
   private inspectionTimerTickHandleCount = 0;
   private tickIntervalId?: NodeJS.Timer;
 
-  constructor(
-    options: Options | undefined = {
-      interval: 100,
-      noInspect: false,
-      timeLimit: 10 * 60,
-    },
-  ) {
+  public readonly configuration: TimerConfiguration;
+
+  constructor(options: Options | undefined = {}) {
     super();
-    this.options = {
-      interval: options.interval ? options.interval : 100,
-      noInspect: options.noInspect ? options.noInspect : false,
-      timeLimit: options.timeLimit ? options.timeLimit : 10 * 60,
+
+    // TODO: If I use the following commented line ava starts failing
+    // this.configuration = Object.assign(defaultConfig, options);
+    // The tests fail if they are ran in parallel but not in sequence.
+    // That is interesting and I would like to know why
+    this.configuration = {
+      ...defaultConfig,
+      ...options,
     };
 
-    if (!this.options.noInspect) {
+    if (!this.configuration.noInspect) {
       this.inspectionTimer = new TinyTimer();
     }
     this.solveTimer = new TinyTimer({
       stopwatch: true,
-      interval: this.options.timeLimit + 1000, // We don't need it to tick. TODO: Do we even need it?
+      interval: this.configuration.timeLimit + 1000, // We don't need it to tick. TODO: Do we even need it?
     });
 
     this.initInternalTimers();
@@ -60,7 +57,7 @@ export default class CanCubeTimer extends EventEmitter {
   private startTicking = (): void => {
     if (!this.tickIntervalId) {
       this.tick();
-      this.tickIntervalId = setInterval(this.tick, this.options.interval);
+      this.tickIntervalId = setInterval(this.tick, this.configuration.interval);
     }
   };
 
@@ -92,7 +89,7 @@ export default class CanCubeTimer extends EventEmitter {
   };
 
   private initInternalTimers = (): void => {
-    if (!this.options.noInspect) {
+    if (!this.configuration.noInspect) {
       this.inspectionTimer.on('tick', this.onInspectionTick);
 
       this.inspectionTimer.on('done', () => {
@@ -101,7 +98,7 @@ export default class CanCubeTimer extends EventEmitter {
       });
 
       this.solveTimer.on('done', () => {
-        this.solveInformation.solveTime = this.options.timeLimit;
+        this.solveInformation.solveTime = this.configuration.timeLimit;
       });
     }
   };
@@ -117,7 +114,7 @@ export default class CanCubeTimer extends EventEmitter {
   };
 
   private stopInternalTimers = (): void => {
-    !this.options.noInspect && this.inspectionTimer.stop();
+    !this.configuration.noInspect && this.inspectionTimer.stop();
     this.solveTimer.stop();
   };
 
@@ -161,7 +158,7 @@ export default class CanCubeTimer extends EventEmitter {
   };
 
   public startInspection = (): void => {
-    if (this.options.noInspect) {
+    if (this.configuration.noInspect) {
       this.throwError("Tried calling 'startInspection' with 'noInspect' option set to true!");
     }
 
@@ -185,17 +182,17 @@ export default class CanCubeTimer extends EventEmitter {
       throw new CanCubeError("Tried calling 'startSolve' while in the 'Solving' phase!");
     }
 
-    if (!this.options.noInspect && this.status === TimerStatus.Inspecting) {
+    if (!this.configuration.noInspect && this.status === TimerStatus.Inspecting) {
       this.solveInformation.inspectionTime = 17000 - this.inspectionTimer.time;
       this.inspectionTimer.stop();
       this.emit(EventType.StatusChange, TimerStatus.Solving);
     }
 
-    this.solveTimer.start(this.options.timeLimit * 1000);
+    this.solveTimer.start(this.configuration.timeLimit * 1000);
   };
 
   get status(): TimerStatus {
-    if (!this.options.noInspect && this.inspectionTimer.status === TinyTimerStatus.Running) {
+    if (!this.configuration.noInspect && this.inspectionTimer.status === TinyTimerStatus.Running) {
       return TimerStatus.Inspecting;
     }
 
