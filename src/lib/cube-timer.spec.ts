@@ -1,5 +1,13 @@
 // tslint:disable:no-expression-statement
 
+const fullTests = process.argv.slice(2)[0] === 'full';
+
+function sleep(ms: number): Promise<number> {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
+}
+
 import test from 'ava';
 import CanCubeTimer, { CanCubeError } from '../lib/cube-timer';
 import { TimerStatus, EventType, TickEvent } from './types';
@@ -62,3 +70,68 @@ test('Throws an error if you try to call startInspection while the timer status 
   t.is(true, true);
   //t.is(timer.status, TimerStatus.Stopped);
 });
+
+test('With inspection enabled, starts inspection, starts solve and reports correct data', t => {
+  const timer = new CanCubeTimer();
+
+  timer.startInspection();
+  timer.startSolve();
+  const solveData = timer.stop();
+
+  t.not(solveData.inspectionTime, null);
+  t.is(solveData.isDNF, false);
+  t.is(solveData.aborted, false);
+  t.is(solveData.penalized, false);
+  t.not(solveData.solveTime, null);
+});
+
+test('Abort during inspection', async t => {
+  const timer = new CanCubeTimer();
+  timer.startInspection();
+  await sleep(1000);
+
+  const solveInformation = timer.abort();
+  t.is(solveInformation.inspectionTime, null);
+  t.true(solveInformation.isDNF);
+  t.true(solveInformation.aborted);
+  t.false(solveInformation.penalized);
+  t.is(solveInformation.solveTime, null);
+});
+
+if (fullTests) {
+  test('15+ inspection with +2 second penalty, solve normal', async t => {
+    t.timeout(18000);
+    const timer = new CanCubeTimer();
+    timer.startInspection();
+    await sleep(16500);
+    timer.startSolve();
+    const solveData = timer.stop();
+
+    t.true(solveData.inspectionTime > 15000);
+    t.false(solveData.isDNF);
+    t.false(solveData.aborted);
+    t.true(solveData.penalized);
+    t.not(solveData.solveTime, null);
+  });
+
+  test.cb('DNF in inspection', t => {
+    t.timeout(18500);
+    const timer = new CanCubeTimer();
+    timer.on(EventType.SolveEnd, solveInformation => {
+      t.true(solveInformation.inspectionTime === 17000);
+      t.true(solveInformation.isDNF);
+      t.true(solveInformation.penalized);
+      t.is(solveInformation.solveTime, null);
+      t.is(timer.status, TimerStatus.Stopped);
+      t.end();
+    });
+    timer.startInspection();
+  });
+}
+test.todo('updates the timer status correctly and calls the registered listeners properly');
+
+test.todo('.start() method behaves properly when inspection is enabled');
+
+test.todo('.start() method behaves properly when inspection is disabled');
+
+test.todo('aborting a solve during the solve returns correct data');

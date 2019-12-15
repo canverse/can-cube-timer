@@ -136,11 +136,6 @@ export default class CanCubeTimer extends EventEmitter {
   };
 
   public stop = (): SolveEndEvent | null => {
-    if (this.status === TimerStatus.Stopped) {
-      console.warn("Tried calling 'stop' when the timer is already stopped");
-      return null;
-    }
-
     const solveEndInfo = Object.assign({}, this.solveInformation);
     if (this.status === TimerStatus.Solving) {
       solveEndInfo.solveTime = this.solveTimer.time;
@@ -179,7 +174,7 @@ export default class CanCubeTimer extends EventEmitter {
 
   public startSolve = (): void => {
     if (this.solveTimer.status === TinyTimerStatus.Running) {
-      throw new CanCubeError("Tried calling 'startSolve' while in the 'Solving' phase!");
+      this.throwError("Tried calling 'startSolve' while in the 'Solving' phase!");
     }
 
     if (!this.configuration.noInspect && this.status === TimerStatus.Inspecting) {
